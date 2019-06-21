@@ -99,6 +99,11 @@ public:
     void reserveVertexCapacity(size_type n);
     void reserveArcCapacity(size_type n);
 
+    void activateVertex(Vertex *v, bool activateIncidentArcs);
+    void deactivateVertex(Vertex *v);
+    void activateArc(Arc *a);
+    void deactivateArc(Arc *a);
+
 protected:
     IncidenceListVertex *recycleOrCreateIncidenceListVertex();
     IncidenceListVertex *createIncidenceListVertex();

@@ -116,9 +116,15 @@ public:
     id_type getNextArcId();
     void setOwner(DiGraph *handle);
 
+    bool activateVertex(IncidenceListVertex *v, bool activateIncidentArcs);
+    bool deactivateVertex(IncidenceListVertex *v);
+    bool activateArc(Arc *a, IncidenceListVertex *tail, IncidenceListVertex *head);
+    bool deactivateArc(Arc *a, IncidenceListVertex *tail, IncidenceListVertex *head);
+
 private:
     DiGraph *graph;
     VertexList vertices;
+    VertexList deactivatedVertices;
     size_type numArcs;
     id_type nextVertexId;
     id_type nextArcId;

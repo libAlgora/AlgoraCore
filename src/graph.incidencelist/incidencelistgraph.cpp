@@ -330,7 +330,75 @@ void IncidenceListGraph::reserveVertexCapacity(size_type n)
 
 void IncidenceListGraph::reserveArcCapacity(size_type n)
 {
-   impl->reserveArcCapacity(n);
+    impl->reserveArcCapacity(n);
+}
+
+void IncidenceListGraph::activateVertex(Vertex *v, bool activateIncidentArcs)
+{
+    auto vertex = castVertex(v, this);
+    if (!impl->activateVertex(vertex, activateIncidentArcs)) {
+        throw std::invalid_argument("Vertex activation failed.");
+    }
+    greetVertex(v);
+    if (activateIncidentArcs) {
+        vertex->mapOutgoingArcs([this](Arc *a) {
+            greetArc(a);
+        }, arcFalse);
+        vertex->mapIncomingArcs([this](Arc *a) {
+            greetArc(a);
+        }, arcFalse);
+    }
+}
+
+void IncidenceListGraph::deactivateVertex(Vertex *v)
+{
+    auto vertex = castVertex(v, this);
+    impl->mapOutgoingArcs(vertex, [&](Arc *a) {
+        invalidateArc(a);
+        dismissArc(a);
+    }, arcFalse);
+    impl->mapIncomingArcs(vertex, [&](Arc *a) {
+        invalidateArc(a);
+        dismissArc(a);
+    }, arcFalse);
+
+    invalidateVertex(vertex);
+    dismissVertex(vertex);
+
+    if (!impl->deactivateVertex(vertex)) {
+        throw std::invalid_argument("Vertex deactivation failed.");
+    }
+}
+
+void IncidenceListGraph::activateArc(Arc *a)
+{
+    if (a->getParent() != this) {
+        throw std::invalid_argument("Arc is not a part of this graph.");
+    }
+
+    auto tail = castVertex(a->getTail(), this);
+    auto head = castVertex(a->getHead(), this);
+    if (!impl->activateArc(a, tail, head)) {
+        throw std::invalid_argument("Arc activation failed.");
+    }
+    greetArc(a);
+}
+
+void IncidenceListGraph::deactivateArc(Arc *a)
+{
+    if (a->getParent() != this) {
+        throw std::invalid_argument("Arc is not a part of this graph.");
+    }
+
+    auto tail = castVertex(a->getTail(), this);
+    auto head = castVertex(a->getHead(), this);
+
+    invalidateArc(a);
+    dismissArc(a);
+
+    if (!impl->deactivateArc(a, tail, head)) {
+        throw std::invalid_argument("Arc deactivation failed.");
+    }
 }
 
 IncidenceListVertex *IncidenceListGraph::recycleOrCreateIncidenceListVertex()

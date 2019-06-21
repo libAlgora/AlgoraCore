@@ -59,12 +59,17 @@ public:
     MultiArcList outgoingMultiArcs;
     MultiArcList incomingMultiArcs;
 
+    ArcList deactivatedOutgoingArcs;
+    ArcList deactivatedIncomingArcs;
+
     PropertyMap<ParallelArcsBundle*> bundle;
 
     FastPropertyMap<size_type> &outIndex;
     FastPropertyMap<size_type> &inIndex;
     PropertyMap<size_type> multiOutIndex;
     PropertyMap<size_type> multiInIndex;
+    PropertyMap<size_type> deactivatedOutIndex;
+    PropertyMap<size_type> deactivatedInIndex;
 
     CheshireCat(
             FastPropertyMap<size_type> &outIndex,
@@ -73,6 +78,8 @@ public:
         : index(i), outIndex(outIndex), inIndex(inIndex) {
         multiOutIndex.setDefaultValue(outIndex.getDefaultValue());
         multiInIndex.setDefaultValue(inIndex.getDefaultValue());
+        deactivatedOutIndex.setDefaultValue(outIndex.getDefaultValue());
+        deactivatedInIndex.setDefaultValue(inIndex.getDefaultValue());
         bundle.setDefaultValue(nullptr);
     }
 
@@ -88,9 +95,13 @@ public:
         incomingArcs.clear();
         outgoingMultiArcs.clear();
         incomingMultiArcs.clear();
+        deactivatedOutgoingArcs.clear();
+        deactivatedIncomingArcs.clear();
 
         multiOutIndex.resetAll();
         multiInIndex.resetAll();
+        deactivatedOutIndex.resetAll();
+        deactivatedInIndex.resetAll();
         bundle.resetAll();
     }
 };
@@ -141,16 +152,14 @@ void IncidenceListVertex::addOutgoingArc(Arc *a)
     }
 }
 
-void IncidenceListVertex::removeOutgoingArc(const Arc *a)
+bool IncidenceListVertex::removeOutgoingArc(const Arc *a)
 {
     if (grin->checkConsisteny && a->getTail() != this) {
         throw std::invalid_argument("Arc has other tail.");
     }
-    if (!removeArcFromList(grin->outgoingArcs, grin->outIndex, a)
-            && !removeArcFromList(grin->outgoingMultiArcs, grin->multiOutIndex, a)
-            && !removeBundledArcFromList(grin->bundle, a)) {
-        throw std::invalid_argument("Unknown outgoing arc.");
-    }
+    return !removeArcFromList(grin->outgoingArcs, grin->outIndex, a)
+            || removeArcFromList(grin->outgoingMultiArcs, grin->multiOutIndex, a)
+            || removeBundledArcFromList(grin->bundle, a);
 }
 
 void IncidenceListVertex::clearOutgoingArcs()
@@ -161,8 +170,12 @@ void IncidenceListVertex::clearOutgoingArcs()
     for (Arc *a : grin->outgoingMultiArcs) {
         grin->multiOutIndex.resetToDefault(a);
     }
+    for (Arc *a : grin->deactivatedOutgoingArcs) {
+        grin->deactivatedOutIndex.resetToDefault(a);
+    }
     grin->outgoingArcs.clear();
     grin->outgoingMultiArcs.clear();
+    grin->deactivatedOutgoingArcs.clear();
 }
 
 IncidenceListVertex::size_type IncidenceListVertex::getInDegree(bool multiArcsAsSimple) const
@@ -208,16 +221,14 @@ void IncidenceListVertex::addIncomingArc(Arc *a)
     }
 }
 
-void IncidenceListVertex::removeIncomingArc(const Arc *a)
+bool IncidenceListVertex::removeIncomingArc(const Arc *a)
 {
     if (grin->checkConsisteny && a->getHead() != this) {
         throw std::invalid_argument("Arc has other head.");
     }
-    if (!removeArcFromList(grin->incomingArcs, grin->inIndex, a)
-            && !removeArcFromList(grin->incomingMultiArcs, grin->multiInIndex, a)
-            && !removeBundledArcFromList(grin->bundle, a)) {
-        throw std::invalid_argument("Unknown incoming arc.");
-    }
+    return removeArcFromList(grin->incomingArcs, grin->inIndex, a)
+            || removeArcFromList(grin->incomingMultiArcs, grin->multiInIndex, a)
+            || removeBundledArcFromList(grin->bundle, a);
 }
 
 void IncidenceListVertex::clearIncomingArcs()
@@ -230,6 +241,10 @@ void IncidenceListVertex::clearIncomingArcs()
     }
     grin->incomingArcs.clear();
     grin->incomingMultiArcs.clear();
+    grin->deactivatedIncomingArcs.clear();
+    grin->inIndex.resetAll();
+    grin->multiInIndex.resetAll();
+    grin->deactivatedInIndex.resetAll();
 }
 
 void IncidenceListVertex::enableConsistencyCheck(bool enable)
@@ -240,6 +255,126 @@ void IncidenceListVertex::enableConsistencyCheck(bool enable)
 IncidenceListVertex::size_type IncidenceListVertex::getIndex() const
 {
     return grin->index;
+}
+
+bool IncidenceListVertex::activateOutgoingArc(Arc *a)
+{
+    if (!removeArcFromList(grin->deactivatedOutgoingArcs, grin->deactivatedOutIndex, a)) {
+        return false;
+    }
+    addOutgoingArc(a);
+    return true;
+}
+
+bool IncidenceListVertex::activateIncomingArc(Arc *a)
+{
+    if (!removeArcFromList(grin->deactivatedIncomingArcs, grin->deactivatedInIndex, a)) {
+        return false;
+    }
+    addIncomingArc(a);
+    return true;
+}
+
+bool IncidenceListVertex::deactivateOutgoingArc(Arc *a)
+{
+    if (!removeOutgoingArc(a)) {
+        return false;
+    }
+    grin->deactivatedOutIndex.setValue(a, grin->deactivatedOutgoingArcs.size());
+    grin->deactivatedOutgoingArcs.push_back(a);
+    return true;
+}
+
+bool IncidenceListVertex::deactivateIncomingArc(Arc *a)
+{
+    if (!removeIncomingArc(a)) {
+        return false;
+    }
+    grin->deactivatedInIndex.setValue(a, grin->deactivatedIncomingArcs.size());
+    grin->deactivatedIncomingArcs.push_back(a);
+    return true;
+}
+
+void IncidenceListVertex::activateAllOutgoingArcs()
+{
+    for (auto *a : grin->deactivatedOutgoingArcs) {
+        addOutgoingArc(a);
+    }
+    grin->deactivatedOutgoingArcs.clear();
+    grin->deactivatedOutIndex.resetAll();
+}
+
+void IncidenceListVertex::deactivateAllOutgoingArcs()
+{
+    auto i = grin->deactivatedOutgoingArcs.size();
+    for (auto *a : grin->outgoingArcs) {
+        grin->deactivatedOutgoingArcs.push_back(a);
+        grin->deactivatedOutIndex.setValue(a, i);
+        i++;
+    }
+    for (auto *a : grin->outgoingMultiArcs) {
+        grin->deactivatedOutgoingArcs.push_back(a);
+        grin->deactivatedOutIndex.setValue(a, i);
+        i++;
+    }
+    grin->outgoingArcs.clear();
+    grin->outgoingMultiArcs.clear();
+    grin->outIndex.resetAll();
+    grin->multiOutIndex.resetAll();
+}
+
+void IncidenceListVertex::activateAllIncomingArcs()
+{
+    for (auto *a : grin->deactivatedIncomingArcs) {
+        addOutgoingArc(a);
+    }
+    grin->deactivatedIncomingArcs.clear();
+    grin->deactivatedInIndex.resetAll();
+}
+
+void IncidenceListVertex::deactivateAllIncomingArcs()
+{
+    auto i = grin->deactivatedIncomingArcs.size();
+    for (auto *a : grin->incomingArcs) {
+        grin->deactivatedIncomingArcs.push_back(a);
+        grin->deactivatedInIndex.setValue(a, i);
+        i++;
+    }
+    for (auto *a : grin->incomingMultiArcs) {
+        grin->deactivatedIncomingArcs.push_back(a);
+        grin->deactivatedInIndex.setValue(a, i);
+        i++;
+    }
+    grin->incomingArcs.clear();
+    grin->incomingMultiArcs.clear();
+    grin->inIndex.resetAll();
+    grin->multiInIndex.resetAll();
+}
+
+bool IncidenceListVertex::mapDeactivatedOutgoingArcs(const ArcMapping &avFun, const ArcPredicate &breakCondition, bool checkValidity) const
+{
+    for (Arc *a : grin->deactivatedOutgoingArcs) {
+        if (breakCondition(a)) {
+            return false;
+        }
+        if (!checkValidity || a->isValid()) {
+            avFun(a);
+        }
+    }
+    return true;
+}
+
+bool IncidenceListVertex::mapDeactivatedIncomingArcs(const ArcMapping &avFun, const ArcPredicate &breakCondition, bool checkValidity) const
+{
+    for (Arc *a : grin->deactivatedIncomingArcs) {
+        if (breakCondition(a)) {
+            return false;
+        }
+        if (!checkValidity || a->isValid()) {
+            avFun(a);
+        }
+    }
+    return true;
 }
 
 void IncidenceListVertex::setIndex(size_type i)

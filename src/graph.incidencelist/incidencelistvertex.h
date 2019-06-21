@@ -75,13 +75,27 @@ public:
 
     size_type getIndex() const;
 
+    // (de)activation of arcs
+    bool activateOutgoingArc(Arc *a);
+    bool activateIncomingArc(Arc *a);
+    bool deactivateOutgoingArc(Arc *a);
+    bool deactivateIncomingArc(Arc *a);
+
+    void activateAllOutgoingArcs();
+    void deactivateAllOutgoingArcs();
+    void activateAllIncomingArcs();
+    void deactivateAllIncomingArcs();
+
+    bool mapDeactivatedOutgoingArcs(const ArcMapping &avFun, const ArcPredicate &breakCondition = arcFalse, bool checkValidity = true) const;
+    bool mapDeactivatedIncomingArcs(const ArcMapping &avFun, const ArcPredicate &breakCondition = arcFalse, bool checkValidity = true) const;
+
 protected:
     virtual void addOutgoingArc(Arc *a);
-    virtual void removeOutgoingArc(const Arc *a);
+    virtual bool removeOutgoingArc(const Arc *a);
     virtual void clearOutgoingArcs();
 
     virtual void addIncomingArc(Arc *a);
-    virtual void removeIncomingArc(const Arc *a);
+    virtual bool removeIncomingArc(const Arc *a);
     virtual void clearIncomingArcs();
 
     virtual void enableConsistencyCheck(bool enable);

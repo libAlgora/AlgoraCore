@@ -133,7 +133,18 @@ void IncidenceListGraphImplementation::clear(bool emptyReserves)
         v->hibernate();
         vertexPool.push_back(v);
     }
+    for (IncidenceListVertex *v : deactivatedVertices) {
+        v->mapOutgoingArcs([this](Arc *a) {
+            a->hibernate();
+            arcPool.push_back(a);
+        });
+        v->clearOutgoingArcs();
+        v->clearIncomingArcs();
+        v->hibernate();
+        vertexPool.push_back(v);
+    }
     vertices.clear();
+    deactivatedVertices.clear();
     numArcs = 0U;
     nextVertexId = 0U;
     nextArcId = 0U;
@@ -462,6 +473,96 @@ void IncidenceListGraphImplementation::setOwner(DiGraph *handle)
     for (auto *a : arcPool) {
         a->setParent(graph);
     }
+}
+
+bool IncidenceListGraphImplementation::activateVertex(IncidenceListVertex *v, bool activateIncidentArcs)
+{
+    auto index = v->getIndex();
+    if (index >= deactivatedVertices.size() || deactivatedVertices[index] != v) {
+        return false;
+    }
+    if (index < deactivatedVertices.size()) {
+        deactivatedVertices.back()->setIndex(index);
+        deactivatedVertices[index] = deactivatedVertices.back();
+    }
+    deactivatedVertices.pop_back();
+
+    v->setIndex(vertices.size());
+    vertices.push_back(v);
+    v->revalidate();
+
+    if (activateIncidentArcs) {
+        v->mapDeactivatedOutgoingArcs([](Arc *a) {
+            auto *head = dynamic_cast<IncidenceListVertex*>(a->getHead());
+            assert(head);
+            head->activateIncomingArc(a);
+            a->revalidate();
+        });
+        v->mapDeactivatedIncomingArcs([](Arc *a) {
+            auto *tail = dynamic_cast<IncidenceListVertex*>(a->getTail());
+            assert(tail);
+            tail->activateOutgoingArc(a);
+            a->revalidate();
+        });
+        v->activateAllOutgoingArcs();
+        v->activateAllIncomingArcs();
+    }
+
+    return true;
+}
+
+bool IncidenceListGraphImplementation::deactivateVertex(IncidenceListVertex *v)
+{
+    auto index = v->getIndex();
+    if (index >= vertices.size() || vertices[index] != v) {
+        return false;
+    }
+
+    v->mapOutgoingArcs([](Arc *a) {
+        auto *head = dynamic_cast<IncidenceListVertex*>(a->getHead());
+        assert(head);
+        head->deactivateIncomingArc(a);
+        a->invalidate();
+    });
+    v->mapIncomingArcs([](Arc *a) {
+        auto *tail = dynamic_cast<IncidenceListVertex*>(a->getTail());
+        assert(tail);
+        tail->deactivateOutgoingArc(a);
+        a->invalidate();
+    });
+    v->deactivateAllOutgoingArcs();
+    v->deactivateAllIncomingArcs();
+
+    if (index < vertices.size()) {
+        vertices.back()->setIndex(index);
+        vertices[index] = vertices.back();
+    }
+    vertices.pop_back();
+
+    v->setIndex(deactivatedVertices.size());
+    deactivatedVertices.push_back(v);
+    v->invalidate();
+    return true;
+}
+
+bool IncidenceListGraphImplementation::activateArc(Arc *a, IncidenceListVertex *tail, IncidenceListVertex *head)
+{
+    if (!tail->activateOutgoingArc(a) || !head->activateIncomingArc(a)) {
+        return false;
+    }
+    a->revalidate();
+    numArcs++;
+    return true;
+}
+
+bool IncidenceListGraphImplementation::deactivateArc(Arc *a, IncidenceListVertex *tail, IncidenceListVertex *head)
+{
+    if (!tail->deactivateOutgoingArc(a) || !head->deactivateIncomingArc(a)) {
+        return false;
+    }
+    a->revalidate();
+    numArcs++;
+    return true;
 }
 
 void IncidenceListGraphImplementation::bundleOutgoingArcs(IncidenceListVertex *vertex)
