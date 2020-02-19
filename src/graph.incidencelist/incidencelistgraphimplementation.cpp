@@ -560,8 +560,8 @@ bool IncidenceListGraphImplementation::deactivateArc(Arc *a, IncidenceListVertex
     if (!tail->deactivateOutgoingArc(a) || !head->deactivateIncomingArc(a)) {
         return false;
     }
-    a->revalidate();
-    numArcs++;
+    a->invalidate();
+    numArcs--;
     return true;
 }
 
