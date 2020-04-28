@@ -26,7 +26,7 @@
 #include <vector>
 
 template<typename value_type,
-         template <typename T>
+         template <typename... Ts>
          typename bucket_container_type = std::vector>
 class CircularBucketList
 {
