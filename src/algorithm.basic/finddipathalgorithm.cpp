@@ -50,6 +50,7 @@ bool FindDiPathAlgorithm<property_map_type>::prepare()
     pr_num_vertices_seen = 0;
     vertexPath.clear();
     arcPath.clear();
+    pathFound = false;
 
     bool ok = ValueComputingAlgorithm<bool>::prepare()
             && from != nullptr
