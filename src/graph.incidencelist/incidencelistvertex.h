@@ -30,6 +30,7 @@ namespace Algora {
 
 class IncidenceListGraph;
 class Arc;
+class MultiArc;
 class ArcVisitor;
 
 template<typename T>
@@ -90,11 +91,17 @@ public:
     bool mapDeactivatedIncomingArcs(const ArcMapping &avFun, const ArcPredicate &breakCondition = arcFalse, bool checkValidity = true) const;
 
 protected:
+    [[deprecated("use addOutgoingSimpleArc() or addOutgoingMultiArc() instead")]]
     virtual void addOutgoingArc(Arc *a);
+    virtual void addOutgoingMultiArc(MultiArc *ma);
+    virtual void addOutgoingSimpleArc(Arc *ma);
     virtual bool removeOutgoingArc(const Arc *a);
     virtual void clearOutgoingArcs();
 
+    [[deprecated("use addIncomingSimpleArc() or addIncomingMultiArc() instead")]]
     virtual void addIncomingArc(Arc *a);
+    virtual void addIncomingMultiArc(MultiArc *a);
+    virtual void addIncomingSimpleArc(Arc *a);
     virtual bool removeIncomingArc(const Arc *a);
     virtual void clearIncomingArcs();
 

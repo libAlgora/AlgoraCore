@@ -129,25 +129,43 @@ IncidenceListVertex::size_type IncidenceListVertex::getOutDegree(bool multiArcsA
     return deg;
 }
 
+[[deprecated("use addOutgoingSimpleArc() or addOutgoingMultiArc() instead")]]
 void IncidenceListVertex::addOutgoingArc(Arc *a)
 {
+    MultiArc *ma = dynamic_cast<MultiArc*>(a);
+    if (ma) {
+        addOutgoingMultiArc(ma);
+    } else {
+        addOutgoingSimpleArc(a);
+    }
+}
+
+void IncidenceListVertex::addOutgoingMultiArc(MultiArc *ma)
+{
+    if (grin->checkConsisteny && ma->getTail() != this) {
+        throw std::invalid_argument("Arc has other tail.");
+    }
+
+    grin->multiOutIndex.setValue(ma, grin->outgoingMultiArcs.size());
+    grin->outgoingMultiArcs.push_back(ma);
+    ParallelArcsBundle *pab = dynamic_cast<ParallelArcsBundle*>(ma);
+    if (pab) {
+        pab->mapArcs([&](Arc *a) {
+            grin->bundle.setValue(a, pab);
+        });
+    }
+}
+
+void IncidenceListVertex::addOutgoingSimpleArc(Arc *a)
+{
+    assert(!dynamic_cast<MultiArc*>(a));
+
     if (grin->checkConsisteny && a->getTail() != this) {
         throw std::invalid_argument("Arc has other tail.");
     }
-    MultiArc *ma = dynamic_cast<MultiArc*>(a);
-    if (ma) {
-        grin->multiOutIndex.setValue(ma, grin->outgoingMultiArcs.size());
-        grin->outgoingMultiArcs.push_back(ma);
-        ParallelArcsBundle *pab = dynamic_cast<ParallelArcsBundle*>(ma);
-        if (pab) {
-            pab->mapArcs([&](Arc *a) {
-                grin->bundle.setValue(a, pab);
-            });
-        }
-    } else {
-        grin->outIndex.setValue(a, grin->outgoingArcs.size());
-        grin->outgoingArcs.push_back(a);
-    }
+
+    grin->outIndex.setValue(a, grin->outgoingArcs.size());
+    grin->outgoingArcs.push_back(a);
 }
 
 bool IncidenceListVertex::removeOutgoingArc(const Arc *a)
@@ -202,25 +220,43 @@ bool IncidenceListVertex::isSink() const
     return grin->outgoingArcs.empty() && grin->outgoingMultiArcs.empty();
 }
 
+[[deprecated("use addIncomingSimpleArc() or addIncomingMultiArc() instead")]]
 void IncidenceListVertex::addIncomingArc(Arc *a)
 {
+    MultiArc *ma = dynamic_cast<MultiArc*>(a);
+    if (ma) {
+        addIncomingMultiArc(ma);
+    } else {
+        addIncomingSimpleArc(a);
+    }
+}
+
+void IncidenceListVertex::addIncomingMultiArc(MultiArc *ma)
+{
+    if (grin->checkConsisteny && ma->getHead() != this) {
+        throw std::invalid_argument("Arc has other head.");
+    }
+
+    grin->multiInIndex.setValue(ma, grin->incomingMultiArcs.size());
+    grin->incomingMultiArcs.push_back(ma);
+    ParallelArcsBundle *pab = dynamic_cast<ParallelArcsBundle*>(ma);
+    if (pab) {
+        pab->mapArcs([&](Arc *a) {
+            grin->bundle.setValue(a, pab);
+        });
+    }
+}
+
+void IncidenceListVertex::addIncomingSimpleArc(Arc *a)
+{
+    assert(!dynamic_cast<MultiArc*>(a));
+
     if (grin->checkConsisteny && a->getHead() != this) {
         throw std::invalid_argument("Arc has other head.");
     }
-    MultiArc *ma = dynamic_cast<MultiArc*>(a);
-    if (ma) {
-        grin->multiInIndex.setValue(ma, grin->incomingMultiArcs.size());
-        grin->incomingMultiArcs.push_back(ma);
-        ParallelArcsBundle *pab = dynamic_cast<ParallelArcsBundle*>(ma);
-        if (pab) {
-            pab->mapArcs([&](Arc *a) {
-                grin->bundle.setValue(a, pab);
-            });
-        }
-    } else {
-        grin->inIndex.setValue(a, grin->incomingArcs.size());
-        grin->incomingArcs.push_back(a);
-    }
+
+    grin->inIndex.setValue(a, grin->incomingArcs.size());
+    grin->incomingArcs.push_back(a);
 }
 
 bool IncidenceListVertex::removeIncomingArc(const Arc *a)
@@ -265,22 +301,28 @@ IncidenceListVertex::size_type IncidenceListVertex::getIndex() const
 
 bool IncidenceListVertex::activateOutgoingArc(Arc *a)
 {
-    if (!removeArcFromList(grin->deactivatedOutgoingArcs, grin->outIndex, a)
-            && !removeArcFromList(grin->deactivatedOutgoingMultiArcs, grin->multiOutIndex, a)) {
-        return false;
+    if (removeArcFromList(grin->deactivatedOutgoingArcs, grin->outIndex, a)) {
+        addOutgoingSimpleArc(a);
+        return true;
     }
-    addOutgoingArc(a);
-    return true;
+    if (removeArcFromList(grin->deactivatedOutgoingMultiArcs, grin->multiOutIndex, a)) {
+        addOutgoingMultiArc(dynamic_cast<MultiArc*>(a));
+        return true;
+    }
+    return false;
 }
 
 bool IncidenceListVertex::activateIncomingArc(Arc *a)
 {
-    if (!removeArcFromList(grin->deactivatedIncomingArcs, grin->inIndex, a)
-            && !removeArcFromList(grin->deactivatedIncomingMultiArcs, grin->multiInIndex, a)) {
-        return false;
+    if (removeArcFromList(grin->deactivatedIncomingArcs, grin->inIndex, a)) {
+        addIncomingSimpleArc(a);
+        return true;
     }
-    addIncomingArc(a);
-    return true;
+    if (removeArcFromList(grin->deactivatedIncomingMultiArcs, grin->multiInIndex, a)) {
+        addIncomingMultiArc(dynamic_cast<MultiArc*>(a));
+        return true;
+    }
+    return false;
 }
 
 bool IncidenceListVertex::deactivateOutgoingArc(Arc *a)
@@ -318,11 +360,11 @@ bool IncidenceListVertex::deactivateIncomingArc(Arc *a)
 void IncidenceListVertex::activateAllOutgoingArcs()
 {
     for (auto *a : grin->deactivatedOutgoingArcs) {
-        addOutgoingArc(a);
+        addOutgoingSimpleArc(a);
     }
     grin->deactivatedOutgoingArcs.clear();
     for (auto *a : grin->deactivatedOutgoingMultiArcs) {
-        addOutgoingArc(a);
+        addOutgoingMultiArc(a);
     }
     grin->deactivatedOutgoingMultiArcs.clear();
 }
@@ -348,11 +390,11 @@ void IncidenceListVertex::deactivateAllOutgoingArcs()
 void IncidenceListVertex::activateAllIncomingArcs()
 {
     for (auto *a : grin->deactivatedIncomingArcs) {
-        addIncomingArc(a);
+        addIncomingSimpleArc(a);
     }
     grin->deactivatedIncomingArcs.clear();
     for (auto *a : grin->deactivatedIncomingMultiArcs) {
-        addIncomingArc(a);
+        addIncomingMultiArc(a);
     }
     grin->deactivatedIncomingMultiArcs.clear();
 }
