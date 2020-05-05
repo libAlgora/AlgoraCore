@@ -155,7 +155,7 @@ Arc *IncidenceListGraph::addArc(Vertex *tail, Vertex *head)
 
     Arc *a = recycleOrCreateArc(t, h);
 
-    impl->addArc(a, t, h);
+    impl->addSimpleArc(a, t, h);
     greetArc(a);
     return a;
 }
@@ -170,7 +170,7 @@ MultiArc *IncidenceListGraph::addMultiArc(Vertex *tail, Vertex *head, size_type 
 
     MultiArc *a = createMultiArc(t, h, size, impl->getNextArcId());
 
-    impl->addArc(a, t, h);
+    impl->addMultiArc(a, t, h);
     greetArc(a);
     return a;
 }

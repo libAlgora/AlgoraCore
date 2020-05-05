@@ -218,8 +218,28 @@ IncidenceListVertex *IncidenceListGraphImplementation::vertexAt(size_type i) con
 
 void IncidenceListGraphImplementation::addArc(Arc *a, IncidenceListVertex *tail, IncidenceListVertex *head)
 {
-    tail->addOutgoingArc(a);
-    head->addIncomingArc(a);
+    auto *ma = dynamic_cast<MultiArc*>(a);
+    if (ma) {
+        tail->addOutgoingMultiArc(ma);
+        head->addIncomingMultiArc(ma);
+    } else {
+        tail->addOutgoingSimpleArc(a);
+        head->addIncomingSimpleArc(a);
+    }
+    numArcs++;
+}
+
+void IncidenceListGraphImplementation::addMultiArc(MultiArc *ma, IncidenceListVertex *tail, IncidenceListVertex *head)
+{
+    tail->addOutgoingMultiArc(ma);
+    head->addIncomingMultiArc(ma);
+    numArcs++;
+}
+
+void IncidenceListGraphImplementation::addSimpleArc(Arc *a, IncidenceListVertex *tail, IncidenceListVertex *head)
+{
+    tail->addOutgoingSimpleArc(a);
+    head->addIncomingSimpleArc(a);
     numArcs++;
 }
 
@@ -565,12 +585,12 @@ bool IncidenceListGraphImplementation::deactivateArc(Arc *a, IncidenceListVertex
     return true;
 }
 
-void IncidenceListGraphImplementation::bundleOutgoingArcs(IncidenceListVertex *vertex)
+void IncidenceListGraphImplementation::bundleOutgoingArcs(IncidenceListVertex *tail)
 {
     std::vector<Arc*> outArcs;
     CollectArcsVisitor collector(&outArcs);
-    vertex->acceptOutgoingArcVisitor(&collector);
-    vertex->clearOutgoingArcs();
+    tail->acceptOutgoingArcVisitor(&collector);
+    tail->clearOutgoingArcs();
 
     std::unordered_map<IncidenceListVertex*,Arc*> map;
     for (Arc *outArc : outArcs) {
@@ -589,10 +609,18 @@ void IncidenceListGraphImplementation::bundleOutgoingArcs(IncidenceListVertex *v
             }
         }
     }
-    for (auto i : map) {
-        Arc *arc = i.second;
-        vertex->addOutgoingArc(arc);
-        i.first->addIncomingArc(arc);
+
+    for (auto &[head, arc] : map) {
+        //Arc *arc = i.second;
+        //i.first->addIncomingArc(arc);
+        auto *ma = dynamic_cast<MultiArc*>(arc);
+        if (ma) {
+            tail->addOutgoingMultiArc(ma);
+            head->addIncomingMultiArc(ma);
+        } else {
+            tail->addOutgoingSimpleArc(arc);
+            head->addIncomingSimpleArc(arc);
+        }
     }
 }
 

@@ -66,9 +66,10 @@ public:
             );
     IncidenceListGraphImplementation& operator=(const IncidenceListGraphImplementation &other) { return assign(other); }
 
-    // moving is costly, but better than copying
+    // TODO implicitly deleted because of object pool
     IncidenceListGraphImplementation(IncidenceListGraphImplementation &&other) = default;
     IncidenceListGraphImplementation& operator=(IncidenceListGraphImplementation &&other) = default;
+
     IncidenceListGraphImplementation(IncidenceListGraphImplementation &&other, DiGraph *handle);
     IncidenceListGraphImplementation& move(IncidenceListGraphImplementation &&other, DiGraph *handle);
 
@@ -80,7 +81,10 @@ public:
     IncidenceListVertex *getFirstVertex() const;
     IncidenceListVertex *vertexAt(size_type i) const;
 
+    //[[deprecated("use addSimpleArc() or addMultiArc() instead")]]
     void addArc(Arc *a, IncidenceListVertex *tail, IncidenceListVertex *head);
+    void addMultiArc(MultiArc *ma, IncidenceListVertex *tail, IncidenceListVertex *head);
+    void addSimpleArc(Arc *a, IncidenceListVertex *tail, IncidenceListVertex *head);
     void removeArc(Arc *a, IncidenceListVertex *tail, IncidenceListVertex *head);
     bool containsArc(const Arc *a, const IncidenceListVertex *tail) const;
     Arc *findArc(const IncidenceListVertex *tail, const IncidenceListVertex *head) const;

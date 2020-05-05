@@ -173,7 +173,7 @@ bool IncidenceListVertex::removeOutgoingArc(const Arc *a)
     if (grin->checkConsisteny && a->getTail() != this) {
         throw std::invalid_argument("Arc has other tail.");
     }
-    return !removeArcFromList(grin->outgoingArcs, grin->outIndex, a)
+    return removeArcFromList(grin->outgoingArcs, grin->outIndex, a)
             || removeArcFromList(grin->outgoingMultiArcs, grin->multiOutIndex, a)
             || removeBundledArcFromList(grin->bundle, a);
 }
