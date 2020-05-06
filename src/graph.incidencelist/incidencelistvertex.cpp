@@ -471,6 +471,7 @@ void IncidenceListVertex::setIndex(size_type i)
 void IncidenceListVertex::hibernate()
 {
     invalidate();
+    reset(); // reset name
     grin->clear();
 }
 
