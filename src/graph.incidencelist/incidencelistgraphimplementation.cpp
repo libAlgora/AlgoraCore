@@ -33,7 +33,6 @@
 #include <unordered_map>
 #include <algorithm>
 
-
 namespace Algora {
 
 template<typename... Args>
@@ -121,7 +120,7 @@ IncidenceListGraphImplementation &IncidenceListGraphImplementation::move(Inciden
     return *this;
 }
 
-void IncidenceListGraphImplementation::clear(bool emptyReserves)
+void IncidenceListGraphImplementation::clear(bool emptyReserves, bool restoreOrder)
 {
     for (IncidenceListVertex *v : vertices) {
         v->mapOutgoingArcs([this](Arc *a) {
@@ -160,6 +159,21 @@ void IncidenceListGraphImplementation::clear(bool emptyReserves)
             vertexStorage.destroy(v);
         }
         vertexPool.clear();
+    } else if (restoreOrder) {
+        const auto vs = vertexPool.size();
+        std::vector<IncidenceListVertex*> orderedVertexPool(vs, nullptr);
+        for (auto *v : vertexPool) {
+            assert(!orderedVertexPool[vs - v->getId() - 1]);
+            orderedVertexPool[vs - v->getId() - 1] = v;
+        }
+        const auto as = arcPool.size();
+        std::vector<Arc*> orderedArcPool(as, nullptr);
+        for (auto *a : arcPool) {
+            assert(!orderedArcPool[as - a->getId() - 1]);
+            orderedArcPool[as - a->getId() - 1] = a;
+        }
+        vertexPool.swap(orderedVertexPool);
+        arcPool.swap(orderedArcPool);
     }
 }
 

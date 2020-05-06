@@ -280,7 +280,7 @@ void IncidenceListGraph::clear()
         invalidateVertex(v);
         dismissVertex(v);
     }, vertexFalse);
-   impl->clear();
+   impl->clear(false);
    DiGraph::clear();
 }
 
@@ -295,6 +295,20 @@ void IncidenceListGraph::clearAndRelease()
         dismissVertex(v);
     }, vertexFalse);
    impl->clear(true);
+   DiGraph::clear();
+}
+
+void IncidenceListGraph::clearOrderedly()
+{
+    impl->mapArcs([this](Arc *a) {
+        invalidateArc(a);
+        dismissArc(a);
+    }, arcFalse);
+    impl->mapVertices([this](Vertex *v) {
+        invalidateVertex(v);
+        dismissVertex(v);
+    }, vertexFalse);
+   impl->clear(false, true);
    DiGraph::clear();
 }
 

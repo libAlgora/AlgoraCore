@@ -72,6 +72,7 @@ public:
 
     virtual void clear() override;
     virtual void clearAndRelease();
+    virtual void clearOrderedly();
 
     // DiGraph interface
 public:

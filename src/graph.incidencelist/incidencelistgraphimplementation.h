@@ -73,7 +73,7 @@ public:
     IncidenceListGraphImplementation(IncidenceListGraphImplementation &&other, DiGraph *handle);
     IncidenceListGraphImplementation& move(IncidenceListGraphImplementation &&other, DiGraph *handle);
 
-    void clear(bool emptyReserves = false);
+    void clear(bool emptyReserves = false, bool restoreOrder = false);
 
     void addVertex(IncidenceListVertex *vertex);
     void removeVertex(IncidenceListVertex *v);
