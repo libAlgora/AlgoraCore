@@ -286,6 +286,14 @@ void IncidenceListGraph::clear()
 
 void IncidenceListGraph::clearAndRelease()
 {
+    impl->mapArcs([this](Arc *a) {
+        invalidateArc(a);
+        dismissArc(a);
+    }, arcFalse);
+    impl->mapVertices([this](Vertex *v) {
+        invalidateVertex(v);
+        dismissVertex(v);
+    }, vertexFalse);
    impl->clear(true);
    DiGraph::clear();
 }
