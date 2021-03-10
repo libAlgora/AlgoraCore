@@ -61,19 +61,6 @@ void strongconnect(DiGraph *graph, Vertex *v,
                    ModifiableProperty<DiGraph::size_type> &sccNumber);
 
 template <template<typename T> class ModifiablePropertyType>
-TarjanSCCAlgorithm<ModifiablePropertyType>::TarjanSCCAlgorithm()
-    : PropertyComputingAlgorithm<DiGraph::size_type, DiGraph::size_type>(true), numSccs(0)
-{
-
-}
-
-template <template<typename T> class ModifiablePropertyType>
-TarjanSCCAlgorithm<ModifiablePropertyType>::~TarjanSCCAlgorithm()
-{
-
-}
-
-template <template<typename T> class ModifiablePropertyType>
 void TarjanSCCAlgorithm<ModifiablePropertyType>::run()
 {
     numSccs = tarjanRecursive<ModifiablePropertyType>(diGraph, *this->property);
@@ -84,12 +71,6 @@ void TarjanSCCAlgorithm<ModifiablePropertyType>::run()
                                numSccs - property->getValue(v) - 1);
         });
     }
-}
-
-template <template<typename T> class ModifiablePropertyType>
-DiGraph::size_type TarjanSCCAlgorithm<ModifiablePropertyType>::deliver()
-{
-    return numSccs;
 }
 
 template <template<typename T> class ModifiablePropertyType>
@@ -167,5 +148,7 @@ void strongconnect(DiGraph *graph, Vertex *v,
     }
     PRINT_DEBUG( "done with " << v )
 }
+template class TarjanSCCAlgorithm<PropertyMap>;
+template class TarjanSCCAlgorithm<FastPropertyMap>;
 
 }
