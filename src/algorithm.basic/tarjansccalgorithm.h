@@ -25,6 +25,7 @@
 
 #include "algorithm/propertycomputingalgorithm.h"
 #include "property/propertymap.h"
+#include "property/fastpropertymap.h"
 #include "graph/digraph.h"
 
 #include <limits>
@@ -37,8 +38,9 @@ template <template<typename T> class ModifiablePropertyType = PropertyMap>
 class TarjanSCCAlgorithm : public PropertyComputingAlgorithm<DiGraph::size_type, DiGraph::size_type>
 {
 public:
-    TarjanSCCAlgorithm();
-    virtual ~TarjanSCCAlgorithm() override;
+    TarjanSCCAlgorithm()
+        : PropertyComputingAlgorithm<DiGraph::size_type, DiGraph::size_type>(true), numSccs(0) {}
+    virtual ~TarjanSCCAlgorithm() override = default;
 
     // DiGraphAlgorithm interface
 public:
@@ -48,14 +50,18 @@ public:
 
     // ValueComputingAlgorithm interface
 public:
-    virtual DiGraph::size_type deliver() override;
+    virtual DiGraph::size_type deliver() override {
+        return numSccs;
+    }
 
 private:
     DiGraph::size_type numSccs;
 };
 
-}
 
-#include "tarjansccalgorithm.cpp"
+extern template class TarjanSCCAlgorithm<PropertyMap>;
+extern template class TarjanSCCAlgorithm<FastPropertyMap>;
+
+}
 
 #endif // TARJANSCCALGORITHM_H
