@@ -33,6 +33,18 @@
 #include <unordered_map>
 #include <algorithm>
 
+//#define DEBUG_ILDIGRAPHIMPL
+
+#ifdef DEBUG_ILDIGRAPHIMPL
+#include <iostream>
+#define PRINT_DEBUG(msg) std::cout << "IncidenceListGraphImpl: " << msg << std::endl;
+#define IF_DEBUG(cmd) cmd;
+#else
+#define PRINT_DEBUG(msg)
+#define IF_DEBUG(cmd)
+#endif
+
+
 namespace Algora {
 
 template<typename... Args>
@@ -122,6 +134,10 @@ IncidenceListGraphImplementation &IncidenceListGraphImplementation::move(Inciden
 
 void IncidenceListGraphImplementation::clear(bool emptyReserves, bool restoreOrder)
 {
+    PRINT_DEBUG("C: Clearing "
+            << (emptyReserves ? "with" : "without") << " emptying reserves and "
+            << (restoreOrder  ? "with" : "without") << " restoring order")
+    PRINT_DEBUG("C: Hibernating active vertices and incident arcs...")
     for (IncidenceListVertex *v : vertices) {
         v->mapOutgoingArcs([this](Arc *a) {
             a->hibernate();
@@ -132,6 +148,7 @@ void IncidenceListGraphImplementation::clear(bool emptyReserves, bool restoreOrd
         v->hibernate();
         vertexPool.push_back(v);
     }
+    PRINT_DEBUG("C: Hibernating deactivated vertices and incident arcs...")
     for (IncidenceListVertex *v : deactivatedVertices) {
         v->mapOutgoingArcs([this](Arc *a) {
             a->hibernate();
@@ -142,6 +159,7 @@ void IncidenceListGraphImplementation::clear(bool emptyReserves, bool restoreOrd
         v->hibernate();
         vertexPool.push_back(v);
     }
+    PRINT_DEBUG("C: Clearing lists...")
     vertices.clear();
     deactivatedVertices.clear();
     numArcs = 0U;
@@ -151,21 +169,21 @@ void IncidenceListGraphImplementation::clear(bool emptyReserves, bool restoreOrd
     recycledArcIds.clear();
 
     if (emptyReserves) {
-        for (auto a : arcPool) {
-            arcStorage.destroy(a);
-        }
+        PRINT_DEBUG("C: Destroying arc pool of size " << arcPool.size() << "...")
+        std::for_each(arcPool.rbegin(), arcPool.rend(), [this](auto *a) { this->arcStorage.destroy(a); });
         arcPool.clear();
-        for (auto v: vertexPool) {
-            vertexStorage.destroy(v);
-        }
+        PRINT_DEBUG("C: Destroying vertex pool of size " << vertexPool.size() << "...")
+        std::for_each(vertexPool.rbegin(), vertexPool.rend(), [this](auto *v) { this->vertexStorage.destroy(v); });
         vertexPool.clear();
     } else if (restoreOrder) {
+        PRINT_DEBUG("C: Restoring order of vertices...")
         const auto vs = vertexPool.size();
         std::vector<IncidenceListVertex*> orderedVertexPool(vs, nullptr);
         for (auto *v : vertexPool) {
             assert(!orderedVertexPool[vs - v->getId() - 1]);
             orderedVertexPool[vs - v->getId() - 1] = v;
         }
+        PRINT_DEBUG("C: Restoring order of arcs...")
         const auto as = arcPool.size();
         std::vector<Arc*> orderedArcPool(as, nullptr);
         for (auto *a : arcPool) {
@@ -175,6 +193,7 @@ void IncidenceListGraphImplementation::clear(bool emptyReserves, bool restoreOrd
         vertexPool.swap(orderedVertexPool);
         arcPool.swap(orderedArcPool);
     }
+    PRINT_DEBUG("C: done.")
 }
 
 void IncidenceListGraphImplementation::addVertex(IncidenceListVertex *vertex)
@@ -403,10 +422,13 @@ void IncidenceListGraphImplementation::reserveVertexCapacity(size_type n)
 
 void IncidenceListGraphImplementation::reserveArcCapacity(size_type n)
 {
+    PRINT_DEBUG("RAC: Requested reserving capacity for " << n << " arcs...")
     if (n <= numArcs + arcPool.size()) {
+        PRINT_DEBUG("RAC: Requested capacity does not exceed current capacity. Nothing to do.")
         return;
     }
     auto reserve = n - numArcs;
+    PRINT_DEBUG("RAC: Need " << reserve << " additional capacity.")
 
     if (reserve == 0U) {
         return;
@@ -415,6 +437,7 @@ void IncidenceListGraphImplementation::reserveArcCapacity(size_type n)
     arcPool.reserve(n);
     arcStorage.set_next_size(reserve);
 
+    PRINT_DEBUG("RAC: Creating and hibernating " << reserve << " arcs...")
     std::vector<Arc*> tmp;
     tmp.reserve(reserve);
     for (auto i = 0ULL; i < reserve; i++) {
@@ -422,7 +445,9 @@ void IncidenceListGraphImplementation::reserveArcCapacity(size_type n)
         a->hibernate();
         tmp.push_back(a);
     }
+    PRINT_DEBUG("RAC: Adding arcs to arc pool...")
     arcPool.insert(arcPool.end(), tmp.rbegin(), tmp.rend());
+    PRINT_DEBUG("RAC: Done.")
 }
 
 IncidenceListVertex *IncidenceListGraphImplementation::recycleOrCreateIncidenceListVertex()

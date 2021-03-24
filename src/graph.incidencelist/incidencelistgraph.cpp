@@ -30,6 +30,17 @@
 
 #include <stdexcept>
 
+//#define DEBUG_ILDIGRAPH
+
+#ifdef DEBUG_ILDIGRAPH
+#include <iostream>
+#define PRINT_DEBUG(msg) std::cout << "IncidenceListGraph: " << msg << std::endl;
+#define IF_DEBUG(cmd) cmd;
+#else
+#define PRINT_DEBUG(msg)
+#define IF_DEBUG(cmd)
+#endif
+
 namespace Algora {
 
 const IncidenceListVertex *castVertex(const Vertex *v, const IncidenceListGraph *graph);
@@ -286,16 +297,21 @@ void IncidenceListGraph::clear()
 
 void IncidenceListGraph::clearAndRelease()
 {
+    PRINT_DEBUG("CR: Clear&Release...")
+    PRINT_DEBUG("CR: Invalidating and dismissing arcs...")
     impl->mapArcs([this](Arc *a) {
         invalidateArc(a);
         dismissArc(a);
     }, arcFalse);
+    PRINT_DEBUG("CR: Invalidating and dismissing vertices...")
     impl->mapVertices([this](Vertex *v) {
         invalidateVertex(v);
         dismissVertex(v);
     }, vertexFalse);
-   impl->clear(true);
-   DiGraph::clear();
+    PRINT_DEBUG("CR: Clearing internal stuff...")
+    impl->clear(true);
+    DiGraph::clear();
+    PRINT_DEBUG("CR: done.\n")
 }
 
 void IncidenceListGraph::clearOrderedly()
