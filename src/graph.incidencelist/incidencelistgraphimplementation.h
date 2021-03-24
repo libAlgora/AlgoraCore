@@ -135,8 +135,8 @@ private:
     std::vector<id_type> recycledVertexIds;
     std::vector<id_type> recycledArcIds;
 
-    boost::object_pool<IncidenceListVertex> vertexStorage;
-    boost::object_pool<Arc> arcStorage;
+    boost::object_pool<IncidenceListVertex> *vertexStorage { nullptr };
+    boost::object_pool<Arc> *arcStorage { nullptr };
     std::vector<IncidenceListVertex*> vertexPool;
     std::vector<Arc*> arcPool;
     std::vector<MultiArc*> multiArcs;

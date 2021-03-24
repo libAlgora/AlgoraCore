@@ -55,6 +55,8 @@ bool any(Args... args) { return (... || args); }
 IncidenceListGraphImplementation::IncidenceListGraphImplementation(DiGraph *handle)
     : graph(handle), numArcs(0U), nextVertexId(0U), nextArcId(0U)
 {
+    vertexStorage = new boost::object_pool<IncidenceListVertex>;
+    arcStorage = new boost::object_pool<Arc>;
     sharedOutIndexMap.setDefaultValue(NO_INDEX);
     sharedInIndexMap.setDefaultValue(NO_INDEX);
 }
@@ -64,7 +66,8 @@ IncidenceListGraphImplementation::~IncidenceListGraphImplementation()
     clear(false);
     arcPool.clear();
     vertexPool.clear();
-    // vertexStorage and arcStorage should be auto-destroyed.
+    delete vertexStorage;
+    delete arcStorage;
 }
 
 IncidenceListGraphImplementation::IncidenceListGraphImplementation(const IncidenceListGraphImplementation &other, DiGraph *handle,
@@ -170,10 +173,12 @@ void IncidenceListGraphImplementation::clear(bool emptyReserves, bool restoreOrd
 
     if (emptyReserves) {
         PRINT_DEBUG("C: Destroying arc pool of size " << arcPool.size() << "...")
-        std::for_each(arcPool.rbegin(), arcPool.rend(), [this](auto *a) { this->arcStorage.destroy(a); });
+        delete arcStorage;
+        arcStorage = new boost::object_pool<Arc>;
         arcPool.clear();
         PRINT_DEBUG("C: Destroying vertex pool of size " << vertexPool.size() << "...")
-        std::for_each(vertexPool.rbegin(), vertexPool.rend(), [this](auto *v) { this->vertexStorage.destroy(v); });
+        delete vertexStorage;
+        vertexStorage = new boost::object_pool<IncidenceListVertex>;
         vertexPool.clear();
     } else if (restoreOrder) {
         PRINT_DEBUG("C: Restoring order of vertices...")
@@ -407,7 +412,7 @@ void IncidenceListGraphImplementation::reserveVertexCapacity(size_type n)
     auto reserve = n - getSize();
 
     vertexPool.reserve(n);
-    vertexStorage.set_next_size(reserve);
+    vertexStorage->set_next_size(reserve);
 
     std::vector<IncidenceListVertex*> tmp;
     tmp.reserve(reserve);
@@ -435,7 +440,7 @@ void IncidenceListGraphImplementation::reserveArcCapacity(size_type n)
     }
 
     arcPool.reserve(n);
-    arcStorage.set_next_size(reserve);
+    arcStorage->set_next_size(reserve);
 
     PRINT_DEBUG("RAC: Creating and hibernating " << reserve << " arcs...")
     std::vector<Arc*> tmp;
@@ -472,7 +477,7 @@ IncidenceListVertex *IncidenceListGraphImplementation::createIncidenceListVertex
         recycledVertexIds.pop_back();
     }
     // constructor takes only up to three parameters...?!
-    auto v  = vertexStorage.construct(id, sharedOutIndexMap, sharedInIndexMap);
+    auto v  = vertexStorage->construct(id, sharedOutIndexMap, sharedInIndexMap);
     v->setParent(graph);
     return v;
 }
@@ -499,7 +504,7 @@ Arc *IncidenceListGraphImplementation::createArc(IncidenceListVertex *tail, Inci
         recycledArcIds.pop_back();
     }
     //return new Arc(tail, head, id, graph);
-    Arc *arc = arcStorage.construct(id, graph);
+    Arc *arc = arcStorage->construct(id, graph);
     arc->recycle(tail, head);
     return arc;
 }
