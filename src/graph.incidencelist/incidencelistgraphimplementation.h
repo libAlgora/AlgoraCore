@@ -124,6 +124,7 @@ public:
     bool deactivateVertex(IncidenceListVertex *v);
     bool activateArc(Arc *a, IncidenceListVertex *tail, IncidenceListVertex *head);
     bool deactivateArc(Arc *a, IncidenceListVertex *tail, IncidenceListVertex *head);
+    void activateAll();
 
 private:
     DiGraph *graph;
