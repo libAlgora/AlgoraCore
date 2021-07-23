@@ -45,7 +45,7 @@ public:
         : ModifiableProperty<T>(name), defaultValue(defaultValue) {
         buckets.assign(capacity, defaultValue);
     }
-    virtual ~FastPropertyMap() { }
+    virtual ~FastPropertyMap() = default;
 
 
     FastPropertyMap(const FastPropertyMap<T> &other) = default;
