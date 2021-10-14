@@ -109,7 +109,17 @@ protected:
     IncidenceListVertex *recycleOrCreateIncidenceListVertex();
     IncidenceListVertex *createIncidenceListVertex();
     Arc *recycleOrCreateArc(IncidenceListVertex *tail, IncidenceListVertex *head);
+
+    // either un-hide function of base class or leave it hidden and disable clang warning
+    // using DiGraph::createArc;
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Woverloaded-virtual"
+#endif
     Arc *createArc(IncidenceListVertex *tail, IncidenceListVertex *head);
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 private:
     IncidenceListGraphImplementation *impl;

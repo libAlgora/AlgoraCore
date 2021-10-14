@@ -53,7 +53,7 @@ bool isStronglyConnected(DiGraph *diGraph)
 
 DiGraph::size_type countStrongComponents(DiGraph *diGraph)
 {
-    TarjanSCCAlgorithm tarjan;
+    TarjanSCCAlgorithm<> tarjan;
     PropertyMap<DiGraph::size_type> sccs(0);
     tarjan.useModifiableProperty(&sccs);
     return runAlgorithm(tarjan, diGraph);
@@ -105,7 +105,7 @@ int computeDiameter(DiGraph *diGraph)
 
 void computeCondensation(DiGraph *diGraph, DiGraph *condensedGraph)
 {
-    TarjanSCCAlgorithm tarjan;
+    TarjanSCCAlgorithm<> tarjan;
     PropertyMap<DiGraph::size_type> sccOf(0);
     tarjan.useModifiableProperty(&sccOf);
     auto sccs = runAlgorithm(tarjan, diGraph);
