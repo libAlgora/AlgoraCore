@@ -1,5 +1,5 @@
 ########################################################################
-# Copyright (C) 2013 - 2019 : Kathrin Hanauer                          #
+# Copyright (C) 2013 - 2021 : Kathrin Hanauer                          #
 #                                                                      #
 # This file is part of Algora.                                         #
 #                                                                      #
@@ -20,22 +20,17 @@
 #   http://algora.xaikal.org                                           #
 ########################################################################
 
-#-------------------------------------------------
-#
-# Project created by QtCreator
-#
-#-------------------------------------------------
-
 QT       -= core gui
 
 TARGET = AlgoraCore
 TEMPLATE = lib
 CONFIG += staticlib c++17
 
+ACINFOHDRTMPL = $$PWD/algoracore_info.TEMPLATE.h
 ACINFOHDR = $$PWD/algoracore_info.h
 acinfotarget.target =  $$ACINFOHDR
-acinfotarget.commands = '$$PWD/../updateInfoHeader $$ACINFOHDR'
-acinfotarget.depends = FORCE
+acinfotarget.commands = '$$PWD/../updateInfoHeader $$ACINFOHDRTMPL $$ACINFOHDR'
+acinfotarget.depends = FORCE $$ACINFOHDRTMPL
 PRE_TARGETDEPS += $$ACINFOHDR
 QMAKE_EXTRA_TARGETS += acinfotarget
 
