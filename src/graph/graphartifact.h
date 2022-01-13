@@ -71,6 +71,7 @@ protected:
     std::string idString() const;
     void invalidate() { valid = false; }
     void revalidate() { valid = true; }
+    void reset() { name.clear(); }
 
 private:
     static id_type nextId;

@@ -95,6 +95,7 @@ public:
     }
     virtual void mapOutgoingArcs(const Vertex *v, const ArcMapping &avFun) { mapOutgoingArcsUntil(v, avFun, arcFalse); }
     virtual void mapIncomingArcs(const Vertex *v, const ArcMapping &avFun) { mapIncomingArcsUntil(v, avFun, arcFalse); }
+    virtual void mapIncidentArcs(const Vertex *v, const ArcMapping &avFun) { mapOutgoingArcs(v, avFun); mapIncomingArcs(v, avFun); }
 
     virtual void mapArcsUntil(const ArcMapping &avFun, const ArcPredicate &breakCondition) = 0;
     virtual void mapOutgoingArcsUntil(const Vertex *v, const ArcMapping &avFun, const ArcPredicate &breakCondition) = 0;

@@ -72,6 +72,7 @@ public:
 
     virtual void clear() override;
     virtual void clearAndRelease();
+    virtual void clearOrderedly();
 
     // DiGraph interface
 public:
@@ -99,11 +100,26 @@ public:
     void reserveVertexCapacity(size_type n);
     void reserveArcCapacity(size_type n);
 
+    void activateVertex(Vertex *v, bool activateIncidentArcs);
+    void deactivateVertex(Vertex *v);
+    void activateArc(Arc *a);
+    void deactivateArc(Arc *a);
+
 protected:
     IncidenceListVertex *recycleOrCreateIncidenceListVertex();
     IncidenceListVertex *createIncidenceListVertex();
     Arc *recycleOrCreateArc(IncidenceListVertex *tail, IncidenceListVertex *head);
+
+    // either un-hide function of base class or leave it hidden and disable clang warning
+    // using DiGraph::createArc;
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Woverloaded-virtual"
+#endif
     Arc *createArc(IncidenceListVertex *tail, IncidenceListVertex *head);
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 private:
     IncidenceListGraphImplementation *impl;

@@ -25,11 +25,10 @@
 
 #include "algorithm/propertycomputingalgorithm.h"
 #include "graph/digraph.h"
+#include "graph/vertex.h"
 #include "graph/graph_functional.h"
 
 namespace Algora {
-
-class Vertex;
 
 template<typename PropertyType, bool reverseArcDirection = false, bool ignoreArcDirection = false>
 class GraphTraversal : public PropertyComputingAlgorithm<DiGraph::size_type, PropertyType>

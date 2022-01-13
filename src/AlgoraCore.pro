@@ -1,5 +1,5 @@
 ########################################################################
-# Copyright (C) 2013 - 2019 : Kathrin Hanauer                          #
+# Copyright (C) 2013 - 2021 : Kathrin Hanauer                          #
 #                                                                      #
 # This file is part of Algora.                                         #
 #                                                                      #
@@ -20,22 +20,17 @@
 #   http://algora.xaikal.org                                           #
 ########################################################################
 
-#-------------------------------------------------
-#
-# Project created by QtCreator
-#
-#-------------------------------------------------
-
 QT       -= core gui
 
 TARGET = AlgoraCore
 TEMPLATE = lib
-CONFIG += staticlib c++17
+CONFIG += staticlib c++17 c++1z
 
+ACINFOHDRTMPL = $$PWD/algoracore_info.TEMPLATE.h
 ACINFOHDR = $$PWD/algoracore_info.h
 acinfotarget.target =  $$ACINFOHDR
-acinfotarget.commands = '$$PWD/../updateInfoHeader $$ACINFOHDR'
-acinfotarget.depends = FORCE
+acinfotarget.commands = '$$PWD/../updateInfoHeader $$ACINFOHDRTMPL $$ACINFOHDR'
+acinfotarget.depends = FORCE $$ACINFOHDRTMPL
 PRE_TARGETDEPS += $$ACINFOHDR
 QMAKE_EXTRA_TARGETS += acinfotarget
 
@@ -48,7 +43,9 @@ QMAKE_CXXFLAGS_RELEASE += -std=c++17 -DNDEBUG -flto
 custom-ar {
   QMAKE_AR += rcs
 } else {
-  QMAKE_AR = gcc-ar rcs
+  QMAKE_AR -= cqs
+  QMAKE_AR -= cq
+  QMAKE_AR += rcs
 }
 
 general {
@@ -58,7 +55,7 @@ general {
 }
 
 debugsymbols {
-	QMAKE_CXXFLAGS_RELEASE += -fno-omit-frame-pointer -g
+  QMAKE_CXXFLAGS_RELEASE += -fno-omit-frame-pointer -g
 }
 
 unix {

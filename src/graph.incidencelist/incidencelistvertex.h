@@ -30,6 +30,7 @@ namespace Algora {
 
 class IncidenceListGraph;
 class Arc;
+class MultiArc;
 class ArcVisitor;
 
 template<typename T>
@@ -75,13 +76,33 @@ public:
 
     size_type getIndex() const;
 
+    // (de)activation of arcs
+    bool activateOutgoingArc(Arc *a);
+    bool activateIncomingArc(Arc *a);
+    bool deactivateOutgoingArc(Arc *a);
+    bool deactivateIncomingArc(Arc *a);
+
+    void activateAllOutgoingArcs();
+    void deactivateAllOutgoingArcs();
+    void activateAllIncomingArcs();
+    void deactivateAllIncomingArcs();
+
+    bool mapDeactivatedOutgoingArcs(const ArcMapping &avFun, const ArcPredicate &breakCondition = arcFalse, bool checkValidity = true) const;
+    bool mapDeactivatedIncomingArcs(const ArcMapping &avFun, const ArcPredicate &breakCondition = arcFalse, bool checkValidity = true) const;
+
 protected:
+    [[deprecated("use addOutgoingSimpleArc() or addOutgoingMultiArc() instead")]]
     virtual void addOutgoingArc(Arc *a);
-    virtual void removeOutgoingArc(const Arc *a);
+    virtual void addOutgoingMultiArc(MultiArc *ma);
+    virtual void addOutgoingSimpleArc(Arc *ma);
+    virtual bool removeOutgoingArc(const Arc *a);
     virtual void clearOutgoingArcs();
 
+    [[deprecated("use addIncomingSimpleArc() or addIncomingMultiArc() instead")]]
     virtual void addIncomingArc(Arc *a);
-    virtual void removeIncomingArc(const Arc *a);
+    virtual void addIncomingMultiArc(MultiArc *a);
+    virtual void addIncomingSimpleArc(Arc *a);
+    virtual bool removeIncomingArc(const Arc *a);
     virtual void clearIncomingArcs();
 
     virtual void enableConsistencyCheck(bool enable);

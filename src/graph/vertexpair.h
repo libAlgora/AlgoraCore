@@ -24,6 +24,7 @@
 #define VERTEXPAIR_H
 
 #include "graphartifact.h"
+#include <cassert>
 
 namespace Algora {
 
@@ -53,6 +54,11 @@ public:
 
     Vertex *getFirst() const { return first; }
     Vertex *getSecond() const { return second; }
+
+    Vertex *getOther(const Vertex *v) const {
+        assert(v == first || v == second);
+        return v == first ? second : first;
+    }
 
     // GraphArtifact interface
 public:

@@ -45,7 +45,7 @@ public:
         : ModifiableProperty<T>(name), defaultValue(defaultValue) {
         buckets.assign(capacity, defaultValue);
     }
-    virtual ~FastPropertyMap() { }
+    virtual ~FastPropertyMap() = default;
 
 
     FastPropertyMap(const FastPropertyMap<T> &other) = default;
@@ -108,6 +108,14 @@ public:
         auto id = ga->getId();
         enlarge(id);
         return buckets[id];
+    }
+
+    const T &operator[](const GraphArtifact *ga) const {
+        auto id = ga->getId();
+        if (id < buckets.size()) {
+            return buckets[id];
+        }
+        return defaultValue;
     }
 
     T &operator[](GraphArtifact::id_type id) {
@@ -231,6 +239,14 @@ public:
         auto id = ga->getId();
         enlarge(id);
         return reinterpret_cast<bool&>(buckets[id]);
+    }
+
+    const bool &operator[](const GraphArtifact *ga) const {
+        auto id = ga->getId();
+        if (id < buckets.size()) {
+            return reinterpret_cast<const bool&>(buckets[id]);
+        }
+        return defaultValue;
     }
 
     bool &operator[](GraphArtifact::id_type id) {

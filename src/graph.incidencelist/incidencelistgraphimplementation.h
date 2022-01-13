@@ -66,13 +66,14 @@ public:
             );
     IncidenceListGraphImplementation& operator=(const IncidenceListGraphImplementation &other) { return assign(other); }
 
-    // moving is costly, but better than copying
+    // TODO implicitly deleted because of object pool
     IncidenceListGraphImplementation(IncidenceListGraphImplementation &&other) = default;
     IncidenceListGraphImplementation& operator=(IncidenceListGraphImplementation &&other) = default;
+
     IncidenceListGraphImplementation(IncidenceListGraphImplementation &&other, DiGraph *handle);
     IncidenceListGraphImplementation& move(IncidenceListGraphImplementation &&other, DiGraph *handle);
 
-    void clear(bool emptyReserves = false);
+    void clear(bool emptyReserves = false, bool restoreOrder = false);
 
     void addVertex(IncidenceListVertex *vertex);
     void removeVertex(IncidenceListVertex *v);
@@ -80,7 +81,10 @@ public:
     IncidenceListVertex *getFirstVertex() const;
     IncidenceListVertex *vertexAt(size_type i) const;
 
+    //[[deprecated("use addSimpleArc() or addMultiArc() instead")]]
     void addArc(Arc *a, IncidenceListVertex *tail, IncidenceListVertex *head);
+    void addMultiArc(MultiArc *ma, IncidenceListVertex *tail, IncidenceListVertex *head);
+    void addSimpleArc(Arc *a, IncidenceListVertex *tail, IncidenceListVertex *head);
     void removeArc(Arc *a, IncidenceListVertex *tail, IncidenceListVertex *head);
     bool containsArc(const Arc *a, const IncidenceListVertex *tail) const;
     Arc *findArc(const IncidenceListVertex *tail, const IncidenceListVertex *head) const;
@@ -116,17 +120,24 @@ public:
     id_type getNextArcId();
     void setOwner(DiGraph *handle);
 
+    bool activateVertex(IncidenceListVertex *v, bool activateIncidentArcs);
+    bool deactivateVertex(IncidenceListVertex *v);
+    bool activateArc(Arc *a, IncidenceListVertex *tail, IncidenceListVertex *head);
+    bool deactivateArc(Arc *a, IncidenceListVertex *tail, IncidenceListVertex *head);
+    void activateAll();
+
 private:
     DiGraph *graph;
     VertexList vertices;
+    VertexList deactivatedVertices;
     size_type numArcs;
     id_type nextVertexId;
     id_type nextArcId;
     std::vector<id_type> recycledVertexIds;
     std::vector<id_type> recycledArcIds;
 
-    boost::object_pool<IncidenceListVertex> vertexStorage;
-    boost::object_pool<Arc> arcStorage;
+    boost::object_pool<IncidenceListVertex> *vertexStorage { nullptr };
+    boost::object_pool<Arc> *arcStorage { nullptr };
     std::vector<IncidenceListVertex*> vertexPool;
     std::vector<Arc*> arcPool;
     std::vector<MultiArc*> multiArcs;

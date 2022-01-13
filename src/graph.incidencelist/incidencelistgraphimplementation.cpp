@@ -33,6 +33,17 @@
 #include <unordered_map>
 #include <algorithm>
 
+//#define DEBUG_ILDIGRAPHIMPL
+
+#ifdef DEBUG_ILDIGRAPHIMPL
+#include <iostream>
+#define PRINT_DEBUG(msg) std::cout << "IncidenceListGraphImpl: " << msg << std::endl;
+#define IF_DEBUG(cmd) cmd;
+#else
+#define PRINT_DEBUG(msg)
+#define IF_DEBUG(cmd)
+#endif
+
 
 namespace Algora {
 
@@ -44,6 +55,8 @@ bool any(Args... args) { return (... || args); }
 IncidenceListGraphImplementation::IncidenceListGraphImplementation(DiGraph *handle)
     : graph(handle), numArcs(0U), nextVertexId(0U), nextArcId(0U)
 {
+    vertexStorage = new boost::object_pool<IncidenceListVertex>;
+    arcStorage = new boost::object_pool<Arc>;
     sharedOutIndexMap.setDefaultValue(NO_INDEX);
     sharedInIndexMap.setDefaultValue(NO_INDEX);
 }
@@ -53,7 +66,8 @@ IncidenceListGraphImplementation::~IncidenceListGraphImplementation()
     clear(false);
     arcPool.clear();
     vertexPool.clear();
-    // vertexStorage and arcStorage should be auto-destroyed.
+    delete vertexStorage;
+    delete arcStorage;
 }
 
 IncidenceListGraphImplementation::IncidenceListGraphImplementation(const IncidenceListGraphImplementation &other, DiGraph *handle,
@@ -121,8 +135,16 @@ IncidenceListGraphImplementation &IncidenceListGraphImplementation::move(Inciden
     return *this;
 }
 
-void IncidenceListGraphImplementation::clear(bool emptyReserves)
+void IncidenceListGraphImplementation::clear(bool emptyReserves, bool restoreOrder)
 {
+    PRINT_DEBUG("C: Clearing "
+            << (emptyReserves ? "with" : "without") << " emptying reserves and "
+            << (restoreOrder  ? "with" : "without") << " restoring order")
+
+    PRINT_DEBUG("C: Reactivating deactivated vertices and arcs...")
+    activateAll();
+
+    PRINT_DEBUG("C: Hibernating active vertices and incident arcs...")
     for (IncidenceListVertex *v : vertices) {
         v->mapOutgoingArcs([this](Arc *a) {
             a->hibernate();
@@ -133,7 +155,9 @@ void IncidenceListGraphImplementation::clear(bool emptyReserves)
         v->hibernate();
         vertexPool.push_back(v);
     }
+    PRINT_DEBUG("C: Clearing lists...")
     vertices.clear();
+    deactivatedVertices.clear();
     numArcs = 0U;
     nextVertexId = 0U;
     nextArcId = 0U;
@@ -141,15 +165,33 @@ void IncidenceListGraphImplementation::clear(bool emptyReserves)
     recycledArcIds.clear();
 
     if (emptyReserves) {
-        for (auto a : arcPool) {
-            arcStorage.destroy(a);
-        }
+        PRINT_DEBUG("C: Destroying arc pool of size " << arcPool.size() << "...")
+        delete arcStorage;
+        arcStorage = new boost::object_pool<Arc>;
         arcPool.clear();
-        for (auto v: vertexPool) {
-            vertexStorage.destroy(v);
-        }
+        PRINT_DEBUG("C: Destroying vertex pool of size " << vertexPool.size() << "...")
+        delete vertexStorage;
+        vertexStorage = new boost::object_pool<IncidenceListVertex>;
         vertexPool.clear();
+    } else if (restoreOrder) {
+        PRINT_DEBUG("C: Restoring order of vertices...")
+        const auto vs = vertexPool.size();
+        std::vector<IncidenceListVertex*> orderedVertexPool(vs, nullptr);
+        for (auto *v : vertexPool) {
+            assert(!orderedVertexPool[vs - v->getId() - 1]);
+            orderedVertexPool[vs - v->getId() - 1] = v;
+        }
+        PRINT_DEBUG("C: Restoring order of arcs...")
+        const auto as = arcPool.size();
+        std::vector<Arc*> orderedArcPool(as, nullptr);
+        for (auto *a : arcPool) {
+            assert(!orderedArcPool[as - a->getId() - 1]);
+            orderedArcPool[as - a->getId() - 1] = a;
+        }
+        vertexPool.swap(orderedVertexPool);
+        arcPool.swap(orderedArcPool);
     }
+    PRINT_DEBUG("C: done.")
 }
 
 void IncidenceListGraphImplementation::addVertex(IncidenceListVertex *vertex)
@@ -207,8 +249,28 @@ IncidenceListVertex *IncidenceListGraphImplementation::vertexAt(size_type i) con
 
 void IncidenceListGraphImplementation::addArc(Arc *a, IncidenceListVertex *tail, IncidenceListVertex *head)
 {
-    tail->addOutgoingArc(a);
-    head->addIncomingArc(a);
+    auto *ma = dynamic_cast<MultiArc*>(a);
+    if (ma) {
+        tail->addOutgoingMultiArc(ma);
+        head->addIncomingMultiArc(ma);
+    } else {
+        tail->addOutgoingSimpleArc(a);
+        head->addIncomingSimpleArc(a);
+    }
+    numArcs++;
+}
+
+void IncidenceListGraphImplementation::addMultiArc(MultiArc *ma, IncidenceListVertex *tail, IncidenceListVertex *head)
+{
+    tail->addOutgoingMultiArc(ma);
+    head->addIncomingMultiArc(ma);
+    numArcs++;
+}
+
+void IncidenceListGraphImplementation::addSimpleArc(Arc *a, IncidenceListVertex *tail, IncidenceListVertex *head)
+{
+    tail->addOutgoingSimpleArc(a);
+    head->addIncomingSimpleArc(a);
     numArcs++;
 }
 
@@ -343,7 +405,7 @@ void IncidenceListGraphImplementation::reserveVertexCapacity(size_type n)
     auto reserve = n - getSize();
 
     vertexPool.reserve(n);
-    vertexStorage.set_next_size(reserve);
+    vertexStorage->set_next_size(reserve);
 
     std::vector<IncidenceListVertex*> tmp;
     tmp.reserve(reserve);
@@ -358,18 +420,22 @@ void IncidenceListGraphImplementation::reserveVertexCapacity(size_type n)
 
 void IncidenceListGraphImplementation::reserveArcCapacity(size_type n)
 {
+    PRINT_DEBUG("RAC: Requested reserving capacity for " << n << " arcs...")
     if (n <= numArcs + arcPool.size()) {
+        PRINT_DEBUG("RAC: Requested capacity does not exceed current capacity. Nothing to do.")
         return;
     }
     auto reserve = n - numArcs;
+    PRINT_DEBUG("RAC: Need " << reserve << " additional capacity.")
 
     if (reserve == 0U) {
         return;
     }
 
     arcPool.reserve(n);
-    arcStorage.set_next_size(reserve);
+    arcStorage->set_next_size(reserve);
 
+    PRINT_DEBUG("RAC: Creating and hibernating " << reserve << " arcs...")
     std::vector<Arc*> tmp;
     tmp.reserve(reserve);
     for (auto i = 0ULL; i < reserve; i++) {
@@ -377,7 +443,9 @@ void IncidenceListGraphImplementation::reserveArcCapacity(size_type n)
         a->hibernate();
         tmp.push_back(a);
     }
+    PRINT_DEBUG("RAC: Adding arcs to arc pool...")
     arcPool.insert(arcPool.end(), tmp.rbegin(), tmp.rend());
+    PRINT_DEBUG("RAC: Done.")
 }
 
 IncidenceListVertex *IncidenceListGraphImplementation::recycleOrCreateIncidenceListVertex()
@@ -402,7 +470,7 @@ IncidenceListVertex *IncidenceListGraphImplementation::createIncidenceListVertex
         recycledVertexIds.pop_back();
     }
     // constructor takes only up to three parameters...?!
-    auto v  = vertexStorage.construct(id, sharedOutIndexMap, sharedInIndexMap);
+    auto v  = vertexStorage->construct(id, sharedOutIndexMap, sharedInIndexMap);
     v->setParent(graph);
     return v;
 }
@@ -429,7 +497,7 @@ Arc *IncidenceListGraphImplementation::createArc(IncidenceListVertex *tail, Inci
         recycledArcIds.pop_back();
     }
     //return new Arc(tail, head, id, graph);
-    Arc *arc = arcStorage.construct(id, graph);
+    Arc *arc = arcStorage->construct(id, graph);
     arc->recycle(tail, head);
     return arc;
 }
@@ -464,12 +532,135 @@ void IncidenceListGraphImplementation::setOwner(DiGraph *handle)
     }
 }
 
-void IncidenceListGraphImplementation::bundleOutgoingArcs(IncidenceListVertex *vertex)
+bool IncidenceListGraphImplementation::activateVertex(IncidenceListVertex *v, bool activateIncidentArcs)
+{
+    auto index = v->getIndex();
+    if (index >= deactivatedVertices.size() || deactivatedVertices[index] != v) {
+        return false;
+    }
+    if (index < deactivatedVertices.size() - 1) {
+        deactivatedVertices.back()->setIndex(index);
+        deactivatedVertices[index] = deactivatedVertices.back();
+    }
+    deactivatedVertices.pop_back();
+
+    v->setIndex(vertices.size());
+    vertices.push_back(v);
+    v->revalidate();
+
+    if (activateIncidentArcs) {
+        v->mapDeactivatedOutgoingArcs([](Arc *a) {
+            auto *head = dynamic_cast<IncidenceListVertex*>(a->getHead());
+            assert(head);
+            head->activateIncomingArc(a);
+            a->revalidate();
+        });
+        v->mapDeactivatedIncomingArcs([](Arc *a) {
+            auto *tail = dynamic_cast<IncidenceListVertex*>(a->getTail());
+            assert(tail);
+            tail->activateOutgoingArc(a);
+            a->revalidate();
+        });
+        v->activateAllOutgoingArcs();
+        v->activateAllIncomingArcs();
+    }
+
+    return true;
+}
+
+bool IncidenceListGraphImplementation::deactivateVertex(IncidenceListVertex *v)
+{
+    auto index = v->getIndex();
+    if (index >= vertices.size() || vertices[index] != v) {
+        return false;
+    }
+
+    v->mapOutgoingArcs([](Arc *a) {
+        auto *head = dynamic_cast<IncidenceListVertex*>(a->getHead());
+        assert(head);
+        head->deactivateIncomingArc(a);
+        a->invalidate();
+    });
+    v->mapIncomingArcs([](Arc *a) {
+        auto *tail = dynamic_cast<IncidenceListVertex*>(a->getTail());
+        assert(tail);
+        tail->deactivateOutgoingArc(a);
+        a->invalidate();
+    });
+    v->deactivateAllOutgoingArcs();
+    v->deactivateAllIncomingArcs();
+
+    if (index < vertices.size()) {
+        vertices.back()->setIndex(index);
+        vertices[index] = vertices.back();
+    }
+    vertices.pop_back();
+
+    v->setIndex(deactivatedVertices.size());
+    deactivatedVertices.push_back(v);
+    v->invalidate();
+    return true;
+}
+
+bool IncidenceListGraphImplementation::activateArc(Arc *a, IncidenceListVertex *tail, IncidenceListVertex *head)
+{
+    if (!tail->activateOutgoingArc(a) || !head->activateIncomingArc(a)) {
+        return false;
+    }
+    a->revalidate();
+    numArcs++;
+    return true;
+}
+
+bool IncidenceListGraphImplementation::deactivateArc(Arc *a, IncidenceListVertex *tail, IncidenceListVertex *head)
+{
+    if (!tail->deactivateOutgoingArc(a) || !head->deactivateIncomingArc(a)) {
+        return false;
+    }
+    a->invalidate();
+    numArcs--;
+    return true;
+}
+
+void IncidenceListGraphImplementation::activateAll()
+{
+    for (auto *v : vertices) {
+        v->activateAllOutgoingArcs();
+        v->activateAllIncomingArcs();
+    }
+
+    while (!deactivatedVertices.empty()) {
+        auto v = deactivatedVertices.back();
+        assert(v->getIndex() == deactivatedVertices.size() - 1);
+        deactivatedVertices.pop_back();
+
+        v->setIndex(vertices.size());
+        vertices.push_back(v);
+        v->revalidate();
+
+        v->mapDeactivatedOutgoingArcs([](Arc *a) {
+            auto *head = dynamic_cast<IncidenceListVertex*>(a->getHead());
+            assert(head);
+            head->activateIncomingArc(a);
+            a->revalidate();
+        });
+        v->mapDeactivatedIncomingArcs([](Arc *a) {
+            auto *tail = dynamic_cast<IncidenceListVertex*>(a->getTail());
+            assert(tail);
+            tail->activateOutgoingArc(a);
+            a->revalidate();
+        });
+        v->activateAllOutgoingArcs();
+        v->activateAllIncomingArcs();
+    }
+}
+
+void IncidenceListGraphImplementation::bundleOutgoingArcs(IncidenceListVertex *tail)
 {
     std::vector<Arc*> outArcs;
     CollectArcsVisitor collector(&outArcs);
-    vertex->acceptOutgoingArcVisitor(&collector);
-    vertex->clearOutgoingArcs();
+    tail->acceptOutgoingArcVisitor(&collector);
+    tail->clearOutgoingArcs();
 
     std::unordered_map<IncidenceListVertex*,Arc*> map;
     for (Arc *outArc : outArcs) {
@@ -488,10 +679,18 @@ void IncidenceListGraphImplementation::bundleOutgoingArcs(IncidenceListVertex *v
             }
         }
     }
-    for (auto i : map) {
-        Arc *arc = i.second;
-        vertex->addOutgoingArc(arc);
-        i.first->addIncomingArc(arc);
+
+    for (auto &[head, arc] : map) {
+        //Arc *arc = i.second;
+        //i.first->addIncomingArc(arc);
+        auto *ma = dynamic_cast<MultiArc*>(arc);
+        if (ma) {
+            tail->addOutgoingMultiArc(ma);
+            head->addIncomingMultiArc(ma);
+        } else {
+            tail->addOutgoingSimpleArc(arc);
+            head->addIncomingSimpleArc(arc);
+        }
     }
 }
 

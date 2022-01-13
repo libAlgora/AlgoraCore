@@ -65,7 +65,7 @@ public:
     virtual std::string typeString() const noexcept override;
 
 protected:
-    void hibernate() { invalidate(); }
+    void hibernate() { invalidate(); reset(); }
     void recycle(Vertex *tail, Vertex *head) {
         first = tail;
         second = head;
